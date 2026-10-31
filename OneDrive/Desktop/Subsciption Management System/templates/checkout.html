@@ -2,47 +2,23 @@
 {% block content %}
 
 <style>
-    /* The Payment Processing Overlay */
     .processing-overlay {
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        z-index: 9999;
-        display: none;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        opacity: 0;
-        transition: opacity 0.3s ease;
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px);
+        z-index: 9999; display: none; justify-content: center; align-items: center;
+        flex-direction: column; opacity: 0; transition: opacity 0.3s ease;
     }
-    .processing-overlay.show {
-        display: flex;
-        opacity: 1;
-    }
+    .processing-overlay.show { display: flex; opacity: 1; }
     .spinner-box {
-        background: white;
-        padding: 40px 60px;
-        border-radius: 24px;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.1);
-        text-align: center;
-        border: 1px solid #eee;
+        background: white; padding: 40px 60px; border-radius: 24px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.1); text-align: center; border: 1px solid #eee;
     }
-    /* Custom Spinner */
     .custom-spinner {
-        width: 60px;
-        height: 60px;
-        border: 6px solid #f3f3f3;
-        border-top: 6px solid #4f46e5;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 20px auto;
+        width: 60px; height: 60px; border: 6px solid #f3f3f3;
+        border-top: 6px solid #4f46e5; border-radius: 50%;
+        animation: spin 1s linear infinite; margin: 0 auto 20px auto;
     }
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 </style>
 
 <!-- Processing Overlay -->
@@ -58,7 +34,6 @@
     <div class="col-md-8 col-lg-7">
         <div class="card shadow-lg border-0 rounded-4 overflow-hidden">
             <div class="row g-0">
-                <!-- Left Side: Order Summary -->
                 <div class="col-md-5 bg-light p-4 d-flex flex-column justify-content-between border-end">
                     <div>
                         <h5 class="fw-bold mb-4 text-dark"><i class="fa-solid fa-file-invoice text-primary me-2"></i>Order Summary</h5>
@@ -89,7 +64,6 @@
                     </div>
                 </div>
 
-                <!-- Right Side: Payment Form -->
                 <div class="col-md-7 p-4 bg-white">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h5 class="fw-bold mb-0">Secure Checkout</h5>
@@ -99,7 +73,6 @@
                         </div>
                     </div>
                     
-                    <!-- Added ID to the form for JavaScript to grab -->
                     <form id="paymentForm" method="POST" action="/process_payment/{{ inv.id }}">
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Cardholder Name</label>
@@ -136,30 +109,17 @@
     </div>
 </div>
 
-<!-- The JavaScript to handle the animation -->
 <script>
     document.getElementById('paymentForm').addEventListener('submit', function(e) {
-        // 1. Stop the form from submitting immediately
         e.preventDefault(); 
-        
-        // 2. Disable the button to prevent double-clicks
         const payBtn = document.getElementById('payButton');
         payBtn.disabled = true;
         payBtn.innerHTML = 'Processing...';
-
-        // 3. Show the blurry spinner overlay
+        
         const overlay = document.getElementById('processingOverlay');
         overlay.style.display = 'flex';
-        
-        // Small delay to trigger the CSS fade-in animation
-        setTimeout(() => {
-            overlay.classList.add('show');
-        }, 10);
-
-        // 4. Wait for 2.5 seconds, then actually submit the form to Flask
-        setTimeout(() => {
-            this.submit(); 
-        }, 2500); // 2500 milliseconds = 2.5 seconds
+        setTimeout(() => { overlay.classList.add('show'); }, 10);
+        setTimeout(() => { this.submit(); }, 2500); 
     });
 </script>
 {% endblock %}
