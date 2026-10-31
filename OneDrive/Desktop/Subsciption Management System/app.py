@@ -31,7 +31,7 @@ class Product(db.Model):
 class Plan(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    billing_period = db.Column(db.String(20), nullable=False)
+    billing_period = db.Column(db.String(20), nullable=False) # monthly, yearly, lifetime
     price = db.Column(db.Float, nullable=False)
     product = db.relationship('Product', backref='plans')
 
@@ -41,7 +41,7 @@ class Subscription(db.Model):
     plan_id = db.Column(db.Integer, db.ForeignKey('plan.id'), nullable=False)
     status = db.Column(db.String(20), default='Active') # Active, Pending, Cancelled
     start_date = db.Column(db.DateTime, default=datetime.utcnow)
-    expiry_date = db.Column(db.DateTime, nullable=True)
+    expiry_date = db.Column(db.DateTime, nullable=True) # Null for lifetime
     plan = db.relationship('Plan', backref='subscriptions')
 
 class Invoice(db.Model):
@@ -61,11 +61,19 @@ class CartItem(db.Model):
     plan = db.relationship('Plan', backref='cart_items')
 
 # ==========================================
-# AUTHENTICATION
+# AUTHENTICATION & CONTEXT PROCESSORS
 # ==========================================
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# This ensures the cart count is available in the navbar across all pages
+@app.context_processor
+def inject_cart_count():
+    if current_user.is_authenticated and current_user.role == 'customer':
+        count = CartItem.query.filter_by(user_id=current_user.id).count()
+        return dict(cart_count=count)
+    return dict(cart_count=0)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -133,18 +141,18 @@ def dashboard():
         total_revenue = sum((i.amount + i.tax) for i in paid_invoices)
         return render_template('admin_dashboard.html', subs=subs, invoices=invoices, plans=plans, revenue=total_revenue)
     else:
-        # ONLY fetch subscriptions that are explicitly 'Active' (so Cancelled/Pending disappear)
+        # ONLY fetch 'Active' subs for the customer view
         subs = Subscription.query.filter_by(customer_id=current_user.id, status='Active').all()
         
+        # Fetch all subs (including pending/cancelled) to find their associated invoices
         all_subs = Subscription.query.filter_by(customer_id=current_user.id).all()
         all_sub_ids = [s.id for s in all_subs]
         
         invoices = Invoice.query.filter(Invoice.subscription_id.in_(all_sub_ids), Invoice.is_hidden == False).order_by(Invoice.created_at.desc()).all()
         unpaid_invoices = [i for i in invoices if i.status == 'Confirmed']
         pending_balance = sum((i.amount + i.tax) for i in unpaid_invoices)
-        cart_count = CartItem.query.filter_by(user_id=current_user.id).count()
         
-        return render_template('customer_dashboard.html', subs=subs, invoices=invoices, plans=plans, pending_balance=pending_balance, cart_count=cart_count)
+        return render_template('customer_dashboard.html', subs=subs, invoices=invoices, plans=plans, pending_balance=pending_balance)
 
 # ==========================================
 # CART & SUBSCRIPTION LOGIC
@@ -156,25 +164,24 @@ def add_to_cart(plan_id):
         flash('Admins cannot buy subscriptions.', 'warning')
         return redirect(url_for('store'))
         
-    # 1. Check if already in cart
+    # Check if already in cart
     existing_cart = CartItem.query.filter_by(user_id=current_user.id, plan_id=plan_id).first()
     if existing_cart:
         flash('Item is already in your cart.', 'info')
         return redirect(url_for('store'))
 
-    # 2. Check if already Active
+    # Check if already Active
     active_sub = Subscription.query.filter_by(customer_id=current_user.id, plan_id=plan_id, status='Active').first()
     if active_sub:
         flash('You already have an active subscription to this service.', 'warning')
         return redirect(url_for('store'))
 
-    # 3. Check if Pending (unpaid)
+    # Check if Pending (unpaid)
     pending_sub = Subscription.query.filter_by(customer_id=current_user.id, plan_id=plan_id, status='Pending').first()
     if pending_sub:
         flash('You have an unpaid invoice for this subscription. Please complete payment first.', 'warning')
         return redirect(url_for('store'))
 
-    # Add to cart
     item = CartItem(user_id=current_user.id, plan_id=plan_id)
     db.session.add(item)
     db.session.commit()
@@ -212,7 +219,6 @@ def checkout_cart():
     elif promo_code != '': flash('Invalid promo code. Ignored.', 'warning')
 
     for item in cart_items:
-        # Calculate Expiry
         if item.plan.billing_period == 'lifetime':
             expiry = None
         elif item.plan.billing_period == 'yearly':
@@ -220,7 +226,7 @@ def checkout_cart():
         else:
             expiry = datetime.utcnow() + timedelta(days=30)
 
-        # Create Subscription as 'Pending' until they pay the invoice
+        # Create as 'Pending' until payment is processed
         sub = Subscription(customer_id=current_user.id, plan_id=item.plan_id, status='Pending', expiry_date=expiry)
         db.session.add(sub)
         db.session.commit()
@@ -231,7 +237,7 @@ def checkout_cart():
         
         inv = Invoice(subscription_id=sub.id, amount=final_price, tax=tax_amount, discount_applied=discount_amount, status='Confirmed')
         db.session.add(inv)
-        db.session.delete(item) # Remove from cart
+        db.session.delete(item)
 
     db.session.commit()
     flash('Subscriptions added! Please pay your invoices to activate them.', 'success')
@@ -244,10 +250,8 @@ def cancel_subscription(sub_id):
     if sub.customer_id != current_user.id:
         return "Unauthorized", 403
         
-    # Change status to Cancelled so it disappears from the dashboard
     sub.status = 'Cancelled'
     db.session.commit()
-    
     flash(f'Subscription for {sub.plan.product.name} has been cancelled.', 'success')
     return redirect(url_for('dashboard'))
 
@@ -262,7 +266,6 @@ def renew_subscription(sub_id):
         flash('Lifetime plans do not need renewal.', 'info')
         return redirect(url_for('dashboard'))
 
-    # Calculate Renewal Period
     if sub.plan.billing_period == 'yearly':
         sub.expiry_date = sub.expiry_date + timedelta(days=365)
     else:
@@ -308,7 +311,7 @@ def process_payment(invoice_id):
     inv = Invoice.query.get_or_404(invoice_id)
     inv.status = 'Paid'
     
-    # Activate the subscription
+    # Activate the pending subscription upon successful payment
     sub = Subscription.query.get(inv.subscription_id)
     if sub:
         sub.status = 'Active'
