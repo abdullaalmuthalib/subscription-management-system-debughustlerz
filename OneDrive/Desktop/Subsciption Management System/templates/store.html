@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row mb-4 text-center">
+    <div class="col-12 mt-3">
+        <h1 class="fw-bold display-6">Unified Subscription Store</h1>
+        <p class="text-muted fs-5">Discover, subscribe, and manage all your services in one place.</p>
+    </div>
+</div>
+
+<!-- Search Bar -->
+<div class="row justify-content-center mb-5">
+    <div class="col-md-6">
+        <div class="input-group input-group-lg shadow-sm">
+            <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-search text-muted"></i></span>
+            <input type="text" id="storeSearch" class="form-control border-start-0" placeholder="Search for Netflix, Spotify, YouTube...">
+        </div>
+    </div>
+</div>
+
+<!-- Product Grid -->
+<div class="row g-4" id="storeGrid">
+    {% for plan in plans %}
+    <div class="col-md-6 col-lg-4 col-xl-3 plan-card" data-name="{{ plan.product.name|lower }}">
+        <div class="card h-100 border-0 shadow-sm" style="border-radius: 16px;">
+            <div class="card-body p-4 d-flex flex-column">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <!-- Icon -->
+                    <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; background-color: #f3f4f6; color: #4f46e5;">
+                        <i class="fa-solid fa-tv fs-4"></i>
+                    </div>
+                    <span class="badge bg-light text-dark border">Monthly</span>
+                </div>
+                
+                <h5 class="fw-bold mb-1">{{ plan.product.name }}</h5>
+                <p class="text-muted small mb-3">Seamless billing integration.</p>
+                
+                <div class="mt-auto">
+                    <div class="d-flex justify-content-between align-items-end mb-3">
+                        <span class="text-muted small">Price</span>
+                        <span class="fs-4 fw-bold text-primary">₹{{ plan.price }}</span>
+                    </div>
+                    
+                    <form method="POST" action="/subscribe/{{ plan.id }}">
+                        <div class="input-group mb-2">
+                            <input type="text" name="promo_code" class="form-control bg-light" placeholder="Promo Code">
+                            <button type="submit" class="btn btn-primary fw-bold px-4">Subscribe</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- JavaScript for Search Filter -->
+<script>
+    document.getElementById('storeSearch').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const cards = document.querySelectorAll('.plan-card');
+        
+        cards.forEach(card => {
+            const name = card.getAttribute('data-name');
+            if (name.includes(searchTerm)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}
