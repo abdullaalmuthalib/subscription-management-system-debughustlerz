@@ -12,52 +12,10 @@
     </div>
 </div>
 
-<div class="row">
-    <!-- Active Subscriptions -->
-    <div class="col-md-5 mb-4">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-white border-0 pt-4 pb-0">
-                <h5 class="fw-bold"><i class="fa-solid fa-layer-group text-primary me-2"></i>Active Subscriptions</h5>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    {% for sub in subs %}
-                    <div class="col-12">
-                        <div class="p-3 rounded-3 border-start border-4 border-primary bg-light">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="fw-bold mb-1">{{ sub.plan.product.name }}</h6>
-                                    {% if sub.plan.billing_period == 'lifetime' %}
-                                        <small class="text-success fw-bold"><i class="fa-solid fa-infinity"></i> Lifetime Access</small>
-                                    {% else %}
-                                        <small class="text-muted">Renews/Expires: {{ sub.expiry_date.strftime('%b %d, %Y') }}</small>
-                                    {% endif %}
-                                </div>
-                                {% if sub.plan.billing_period != 'lifetime' %}
-                                <form method="POST" action="/renew/{{ sub.id }}">
-                                    <button type="submit" class="btn btn-sm btn-primary fw-bold rounded-pill"><i class="fa-solid fa-rotate-right me-1"></i> Renew</button>
-                                </form>
-                                {% else %}
-                                <span class="badge bg-success bg-opacity-75"><i class="fa-solid fa-check"></i> Permanent</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="col-12 text-center py-5">
-                        <i class="fa-solid fa-box-open fa-3x text-light mb-3"></i>
-                        <h6 class="text-muted">No active subscriptions.</h6>
-                        <a href="/store" class="btn btn-sm btn-primary mt-2">Go to Store</a>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Billing History -->
-    <div class="col-md-7 mb-4">
-        <div class="card shadow-sm border-0 h-100">
+<!-- 1. BILLING HISTORY (TOP) -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
             <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
                 <h5 class="fw-bold mb-0"><i class="fa-solid fa-file-invoice-dollar text-primary me-2"></i>Billing History</h5>
                 {% if invoices %}
@@ -110,6 +68,64 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. ACTIVE SUBSCRIPTIONS (BOTTOM) -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-0 pt-4 pb-0">
+                <h5 class="fw-bold"><i class="fa-solid fa-layer-group text-primary me-2"></i>Active Subscriptions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    {% for sub in subs %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="p-3 rounded-3 border-start border-4 border-primary bg-light h-100 d-flex flex-column justify-content-between">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="fw-bold mb-1">{{ sub.plan.product.name }}</h6>
+                                    {% if sub.plan.billing_period == 'lifetime' %}
+                                        <small class="text-success fw-bold"><i class="fa-solid fa-infinity"></i> Lifetime Access</small>
+                                    {% else %}
+                                        <small class="text-muted">Renews/Expires: {{ sub.expiry_date.strftime('%b %d, %Y') }}</small>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- Action Buttons (Renew & Cancel) -->
+                                <div class="d-flex gap-2">
+                                    {% if sub.plan.billing_period != 'lifetime' %}
+                                    <form method="POST" action="/renew/{{ sub.id }}">
+                                        <button type="submit" class="btn btn-sm btn-primary fw-bold rounded-pill" title="Renew Subscription"><i class="fa-solid fa-rotate-right"></i></button>
+                                    </form>
+                                    {% endif %}
+                                    
+                                    <!-- Cancel Button -->
+                                    <form method="POST" action="/cancel_subscription/{{ sub.id }}" onsubmit="return confirm('Are you sure you want to cancel {{ sub.plan.product.name }}? You will lose access immediately.');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger fw-bold rounded-pill" title="Cancel Subscription"><i class="fa-solid fa-trash"></i></button>
+                                    </form>
+                                </div>
+                            </div>
+                            
+                            <!-- Permanent Badge for Lifetime -->
+                            {% if sub.plan.billing_period == 'lifetime' %}
+                            <div class="mt-2">
+                                <span class="badge bg-success bg-opacity-75"><i class="fa-solid fa-check"></i> Permanent</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-12 text-center py-5">
+                        <i class="fa-solid fa-box-open fa-3x text-light mb-3"></i>
+                        <h6 class="text-muted">No active subscriptions. Pay your pending invoices to activate them!</h6>
+                        <a href="/store" class="btn btn-sm btn-primary mt-2">Go to Store</a>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>

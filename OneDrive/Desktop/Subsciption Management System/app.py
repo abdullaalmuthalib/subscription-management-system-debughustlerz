@@ -243,6 +243,22 @@ def renew_subscription(sub_id):
     flash(f'Subscription for {sub.plan.product.name} renewed!', 'success')
     return redirect(url_for('dashboard'))
 
+@app.route('/cancel_subscription/<int:sub_id>', methods=['POST'])
+@login_required
+def cancel_subscription(sub_id):
+    sub = Subscription.query.get_or_404(sub_id)
+    
+    # Security check: ensure the user owns this subscription
+    if sub.customer_id != current_user.id:
+        return "Unauthorized", 403
+        
+    # Change status to 'Cancelled'. The dashboard query only looks for 'Active', so it will disappear.
+    sub.status = 'Cancelled'
+    db.session.commit()
+    
+    flash(f'Subscription for {sub.plan.product.name} has been cancelled.', 'success')
+    return redirect(url_for('dashboard'))
+
 @app.route('/clear_history', methods=['POST'])
 @login_required
 def clear_history():
