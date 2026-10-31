@@ -31,7 +31,7 @@ class Product(db.Model):
 class Plan(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    billing_period = db.Column(db.String(20), nullable=False) # monthly, yearly, lifetime
+    billing_period = db.Column(db.String(20), nullable=False)
     price = db.Column(db.Float, nullable=False)
     product = db.relationship('Product', backref='plans')
 
@@ -39,9 +39,9 @@ class Subscription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     plan_id = db.Column(db.Integer, db.ForeignKey('plan.id'), nullable=False)
-    status = db.Column(db.String(20), default='Active')
+    status = db.Column(db.String(20), default='Active') # Active, Pending, Cancelled
     start_date = db.Column(db.DateTime, default=datetime.utcnow)
-    expiry_date = db.Column(db.DateTime, nullable=True) # Nullable for lifetime
+    expiry_date = db.Column(db.DateTime, nullable=True)
     plan = db.relationship('Plan', backref='subscriptions')
 
 class Invoice(db.Model):
@@ -50,7 +50,7 @@ class Invoice(db.Model):
     amount = db.Column(db.Float, nullable=False)
     tax = db.Column(db.Float, default=0.0)
     discount_applied = db.Column(db.Float, default=0.0)
-    status = db.Column(db.String(20), default='Confirmed')
+    status = db.Column(db.String(20), default='Confirmed') # Confirmed, Paid
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_hidden = db.Column(db.Boolean, default=False)
 
@@ -61,7 +61,7 @@ class CartItem(db.Model):
     plan = db.relationship('Plan', backref='cart_items')
 
 # ==========================================
-# AUTHENTICATION ROUTES
+# AUTHENTICATION
 # ==========================================
 @login_manager.user_loader
 def load_user(user_id):
@@ -109,7 +109,7 @@ def logout():
     return redirect(url_for('login'))
 
 # ==========================================
-# DASHBOARD & STORE ROUTES
+# DASHBOARD & STORE
 # ==========================================
 @app.route('/')
 def home():
@@ -133,8 +133,7 @@ def dashboard():
         total_revenue = sum((i.amount + i.tax) for i in paid_invoices)
         return render_template('admin_dashboard.html', subs=subs, invoices=invoices, plans=plans, revenue=total_revenue)
     else:
-        # 👇 THIS IS THE CRITICAL LINE
-        # It MUST filter by status='Active' so cancelled subs disappear
+        # ONLY fetch subscriptions that are explicitly 'Active' (so Cancelled/Pending disappear)
         subs = Subscription.query.filter_by(customer_id=current_user.id, status='Active').all()
         
         all_subs = Subscription.query.filter_by(customer_id=current_user.id).all()
@@ -144,10 +143,11 @@ def dashboard():
         unpaid_invoices = [i for i in invoices if i.status == 'Confirmed']
         pending_balance = sum((i.amount + i.tax) for i in unpaid_invoices)
         cart_count = CartItem.query.filter_by(user_id=current_user.id).count()
+        
         return render_template('customer_dashboard.html', subs=subs, invoices=invoices, plans=plans, pending_balance=pending_balance, cart_count=cart_count)
-    
+
 # ==========================================
-# CART & SUBSCRIPTION ROUTES
+# CART & SUBSCRIPTION LOGIC
 # ==========================================
 @app.route('/add_to_cart/<int:plan_id>', methods=['POST'])
 @login_required
@@ -156,14 +156,29 @@ def add_to_cart(plan_id):
         flash('Admins cannot buy subscriptions.', 'warning')
         return redirect(url_for('store'))
         
-    existing = CartItem.query.filter_by(user_id=current_user.id, plan_id=plan_id).first()
-    if existing:
+    # 1. Check if already in cart
+    existing_cart = CartItem.query.filter_by(user_id=current_user.id, plan_id=plan_id).first()
+    if existing_cart:
         flash('Item is already in your cart.', 'info')
-    else:
-        item = CartItem(user_id=current_user.id, plan_id=plan_id)
-        db.session.add(item)
-        db.session.commit()
-        flash('Added to cart successfully!', 'success')
+        return redirect(url_for('store'))
+
+    # 2. Check if already Active
+    active_sub = Subscription.query.filter_by(customer_id=current_user.id, plan_id=plan_id, status='Active').first()
+    if active_sub:
+        flash('You already have an active subscription to this service.', 'warning')
+        return redirect(url_for('store'))
+
+    # 3. Check if Pending (unpaid)
+    pending_sub = Subscription.query.filter_by(customer_id=current_user.id, plan_id=plan_id, status='Pending').first()
+    if pending_sub:
+        flash('You have an unpaid invoice for this subscription. Please complete payment first.', 'warning')
+        return redirect(url_for('store'))
+
+    # Add to cart
+    item = CartItem(user_id=current_user.id, plan_id=plan_id)
+    db.session.add(item)
+    db.session.commit()
+    flash('Added to cart successfully!', 'success')
     return redirect(url_for('store'))
 
 @app.route('/cart')
@@ -197,15 +212,16 @@ def checkout_cart():
     elif promo_code != '': flash('Invalid promo code. Ignored.', 'warning')
 
     for item in cart_items:
-        # Handle Expiry Logic
+        # Calculate Expiry
         if item.plan.billing_period == 'lifetime':
-            expiry = None # No expiry for lifetime
+            expiry = None
         elif item.plan.billing_period == 'yearly':
             expiry = datetime.utcnow() + timedelta(days=365)
         else:
             expiry = datetime.utcnow() + timedelta(days=30)
 
-        sub = Subscription(customer_id=current_user.id, plan_id=item.plan_id, status='Active', expiry_date=expiry)
+        # Create Subscription as 'Pending' until they pay the invoice
+        sub = Subscription(customer_id=current_user.id, plan_id=item.plan_id, status='Pending', expiry_date=expiry)
         db.session.add(sub)
         db.session.commit()
         
@@ -215,10 +231,24 @@ def checkout_cart():
         
         inv = Invoice(subscription_id=sub.id, amount=final_price, tax=tax_amount, discount_applied=discount_amount, status='Confirmed')
         db.session.add(inv)
-        db.session.delete(item)
+        db.session.delete(item) # Remove from cart
 
     db.session.commit()
-    flash('Subscriptions activated! Please pay your invoices.', 'success')
+    flash('Subscriptions added! Please pay your invoices to activate them.', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/cancel_subscription/<int:sub_id>', methods=['POST'])
+@login_required
+def cancel_subscription(sub_id):
+    sub = Subscription.query.get_or_404(sub_id)
+    if sub.customer_id != current_user.id:
+        return "Unauthorized", 403
+        
+    # Change status to Cancelled so it disappears from the dashboard
+    sub.status = 'Cancelled'
+    db.session.commit()
+    
+    flash(f'Subscription for {sub.plan.product.name} has been cancelled.', 'success')
     return redirect(url_for('dashboard'))
 
 @app.route('/renew/<int:sub_id>', methods=['POST'])
@@ -245,23 +275,7 @@ def renew_subscription(sub_id):
     db.session.add(inv)
     db.session.commit()
     
-    flash(f'Subscription for {sub.plan.product.name} renewed!', 'success')
-    return redirect(url_for('dashboard'))
-
-@app.route('/cancel_subscription/<int:sub_id>', methods=['POST'])
-@login_required
-def cancel_subscription(sub_id):
-    sub = Subscription.query.get_or_404(sub_id)
-    
-    # Security check: ensure the user owns this subscription
-    if sub.customer_id != current_user.id:
-        return "Unauthorized", 403
-        
-    # Change status to 'Cancelled'. The dashboard query only looks for 'Active', so it will disappear.
-    sub.status = 'Cancelled'
-    db.session.commit()
-    
-    flash(f'Subscription for {sub.plan.product.name} has been cancelled.', 'success')
+    flash(f'Subscription for {sub.plan.product.name} renewed! Please pay the new invoice.', 'success')
     return redirect(url_for('dashboard'))
 
 @app.route('/clear_history', methods=['POST'])
@@ -277,8 +291,32 @@ def clear_history():
     return redirect(url_for('dashboard'))
 
 # ==========================================
-# ADMIN & PAYMENT ROUTES
+# PAYMENT & ADMIN
 # ==========================================
+@app.route('/checkout/<int:invoice_id>')
+@login_required
+def checkout(invoice_id):
+    inv = Invoice.query.get_or_404(invoice_id)
+    if inv.status == 'Paid':
+        flash('This invoice is already paid.', 'info')
+        return redirect(url_for('dashboard'))
+    return render_template('checkout.html', inv=inv)
+
+@app.route('/process_payment/<int:invoice_id>', methods=['POST'])
+@login_required
+def process_payment(invoice_id):
+    inv = Invoice.query.get_or_404(invoice_id)
+    inv.status = 'Paid'
+    
+    # Activate the subscription
+    sub = Subscription.query.get(inv.subscription_id)
+    if sub:
+        sub.status = 'Active'
+        
+    db.session.commit()
+    flash('Payment Successful! Your subscription is now active.', 'success')
+    return redirect(url_for('dashboard'))
+
 @app.route('/admin/create_plan', methods=['POST'])
 @login_required
 def create_plan():
@@ -297,24 +335,6 @@ def create_plan():
     flash('New Plan Created Successfully!', 'success')
     return redirect(url_for('dashboard'))
 
-@app.route('/checkout/<int:invoice_id>')
-@login_required
-def checkout(invoice_id):
-    inv = Invoice.query.get_or_404(invoice_id)
-    if inv.status == 'Paid':
-        flash('This invoice is already paid.', 'info')
-        return redirect(url_for('dashboard'))
-    return render_template('checkout.html', inv=inv)
-
-@app.route('/process_payment/<int:invoice_id>', methods=['POST'])
-@login_required
-def process_payment(invoice_id):
-    inv = Invoice.query.get_or_404(invoice_id)
-    inv.status = 'Paid'
-    db.session.commit()
-    flash('Payment Successful! Thank you for your business.', 'success')
-    return redirect(url_for('dashboard'))
-
 # ==========================================
 # DATABASE SEEDING
 # ==========================================
@@ -326,7 +346,6 @@ with app.app_context():
         db.session.commit()
     
     if not Product.query.first():
-        # Seeding with mixed billing periods
         mock_plans = [
             {"name": "Netflix Premium", "price": 649.0, "period": "monthly"},
             {"name": "Spotify Premium", "price": 119.0, "period": "monthly"},
