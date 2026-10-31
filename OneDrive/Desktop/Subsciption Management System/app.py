@@ -133,14 +133,19 @@ def dashboard():
         total_revenue = sum((i.amount + i.tax) for i in paid_invoices)
         return render_template('admin_dashboard.html', subs=subs, invoices=invoices, plans=plans, revenue=total_revenue)
     else:
-        subs = Subscription.query.filter_by(customer_id=current_user.id).all()
-        sub_ids = [s.id for s in subs]
-        invoices = Invoice.query.filter(Invoice.subscription_id.in_(sub_ids), Invoice.is_hidden == False).order_by(Invoice.created_at.desc()).all()
+        # 👇 THIS IS THE CRITICAL LINE
+        # It MUST filter by status='Active' so cancelled subs disappear
+        subs = Subscription.query.filter_by(customer_id=current_user.id, status='Active').all()
+        
+        all_subs = Subscription.query.filter_by(customer_id=current_user.id).all()
+        all_sub_ids = [s.id for s in all_subs]
+        
+        invoices = Invoice.query.filter(Invoice.subscription_id.in_(all_sub_ids), Invoice.is_hidden == False).order_by(Invoice.created_at.desc()).all()
         unpaid_invoices = [i for i in invoices if i.status == 'Confirmed']
         pending_balance = sum((i.amount + i.tax) for i in unpaid_invoices)
         cart_count = CartItem.query.filter_by(user_id=current_user.id).count()
         return render_template('customer_dashboard.html', subs=subs, invoices=invoices, plans=plans, pending_balance=pending_balance, cart_count=cart_count)
-
+    
 # ==========================================
 # CART & SUBSCRIPTION ROUTES
 # ==========================================
