@@ -4,7 +4,6 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import re
-import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'super_secret_hackathon_key'
@@ -32,7 +31,7 @@ class Product(db.Model):
 class Plan(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
-    billing_period = db.Column(db.String(20), nullable=False) 
+    billing_period = db.Column(db.String(20), nullable=False) # monthly, yearly, lifetime
     price = db.Column(db.Float, nullable=False)
     product = db.relationship('Product', backref='plans')
 
@@ -42,7 +41,7 @@ class Subscription(db.Model):
     plan_id = db.Column(db.Integer, db.ForeignKey('plan.id'), nullable=False)
     status = db.Column(db.String(20), default='Active')
     start_date = db.Column(db.DateTime, default=datetime.utcnow)
-    expiry_date = db.Column(db.DateTime)
+    expiry_date = db.Column(db.DateTime, nullable=True) # Nullable for lifetime
     plan = db.relationship('Plan', backref='subscriptions')
 
 class Invoice(db.Model):
@@ -53,6 +52,13 @@ class Invoice(db.Model):
     discount_applied = db.Column(db.Float, default=0.0)
     status = db.Column(db.String(20), default='Confirmed')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_hidden = db.Column(db.Boolean, default=False)
+
+class CartItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    plan_id = db.Column(db.Integer, db.ForeignKey('plan.id'), nullable=False)
+    plan = db.relationship('Plan', backref='cart_items')
 
 # ==========================================
 # AUTHENTICATION ROUTES
@@ -103,7 +109,7 @@ def logout():
     return redirect(url_for('login'))
 
 # ==========================================
-# DASHBOARD & CORE LOGIC
+# DASHBOARD & STORE ROUTES
 # ==========================================
 @app.route('/')
 def home():
@@ -129,11 +135,129 @@ def dashboard():
     else:
         subs = Subscription.query.filter_by(customer_id=current_user.id).all()
         sub_ids = [s.id for s in subs]
-        invoices = Invoice.query.filter(Invoice.subscription_id.in_(sub_ids)).all()
+        invoices = Invoice.query.filter(Invoice.subscription_id.in_(sub_ids), Invoice.is_hidden == False).order_by(Invoice.created_at.desc()).all()
         unpaid_invoices = [i for i in invoices if i.status == 'Confirmed']
         pending_balance = sum((i.amount + i.tax) for i in unpaid_invoices)
-        return render_template('customer_dashboard.html', subs=subs, invoices=invoices, plans=plans, pending_balance=pending_balance)
+        cart_count = CartItem.query.filter_by(user_id=current_user.id).count()
+        return render_template('customer_dashboard.html', subs=subs, invoices=invoices, plans=plans, pending_balance=pending_balance, cart_count=cart_count)
 
+# ==========================================
+# CART & SUBSCRIPTION ROUTES
+# ==========================================
+@app.route('/add_to_cart/<int:plan_id>', methods=['POST'])
+@login_required
+def add_to_cart(plan_id):
+    if current_user.role == 'admin':
+        flash('Admins cannot buy subscriptions.', 'warning')
+        return redirect(url_for('store'))
+        
+    existing = CartItem.query.filter_by(user_id=current_user.id, plan_id=plan_id).first()
+    if existing:
+        flash('Item is already in your cart.', 'info')
+    else:
+        item = CartItem(user_id=current_user.id, plan_id=plan_id)
+        db.session.add(item)
+        db.session.commit()
+        flash('Added to cart successfully!', 'success')
+    return redirect(url_for('store'))
+
+@app.route('/cart')
+@login_required
+def view_cart():
+    cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
+    total = sum(item.plan.price for item in cart_items)
+    return render_template('cart.html', cart_items=cart_items, total=total)
+
+@app.route('/remove_from_cart/<int:item_id>', methods=['POST'])
+@login_required
+def remove_from_cart(item_id):
+    item = CartItem.query.get_or_404(item_id)
+    if item.user_id == current_user.id:
+        db.session.delete(item)
+        db.session.commit()
+        flash('Item removed from cart.', 'success')
+    return redirect(url_for('view_cart'))
+
+@app.route('/checkout_cart', methods=['POST'])
+@login_required
+def checkout_cart():
+    cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
+    if not cart_items:
+        return redirect(url_for('view_cart'))
+
+    promo_code = request.form.get('promo_code', '').strip().upper()
+    discount_rate = 0.0
+    if promo_code == 'SAVE20': discount_rate = 0.20
+    elif promo_code == 'SUPER70': discount_rate = 0.70
+    elif promo_code != '': flash('Invalid promo code. Ignored.', 'warning')
+
+    for item in cart_items:
+        # Handle Expiry Logic
+        if item.plan.billing_period == 'lifetime':
+            expiry = None # No expiry for lifetime
+        elif item.plan.billing_period == 'yearly':
+            expiry = datetime.utcnow() + timedelta(days=365)
+        else:
+            expiry = datetime.utcnow() + timedelta(days=30)
+
+        sub = Subscription(customer_id=current_user.id, plan_id=item.plan_id, status='Active', expiry_date=expiry)
+        db.session.add(sub)
+        db.session.commit()
+        
+        discount_amount = item.plan.price * discount_rate
+        final_price = item.plan.price - discount_amount
+        tax_amount = final_price * 0.18
+        
+        inv = Invoice(subscription_id=sub.id, amount=final_price, tax=tax_amount, discount_applied=discount_amount, status='Confirmed')
+        db.session.add(inv)
+        db.session.delete(item)
+
+    db.session.commit()
+    flash('Subscriptions activated! Please pay your invoices.', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/renew/<int:sub_id>', methods=['POST'])
+@login_required
+def renew_subscription(sub_id):
+    sub = Subscription.query.get_or_404(sub_id)
+    if sub.customer_id != current_user.id and current_user.role != 'admin':
+        return "Unauthorized", 403
+    
+    if sub.plan.billing_period == 'lifetime':
+        flash('Lifetime plans do not need renewal.', 'info')
+        return redirect(url_for('dashboard'))
+
+    # Calculate Renewal Period
+    if sub.plan.billing_period == 'yearly':
+        sub.expiry_date = sub.expiry_date + timedelta(days=365)
+    else:
+        sub.expiry_date = sub.expiry_date + timedelta(days=30)
+        
+    sub.status = 'Active'
+    
+    tax_amount = sub.plan.price * 0.18
+    inv = Invoice(subscription_id=sub.id, amount=sub.plan.price, tax=tax_amount, status='Confirmed')
+    db.session.add(inv)
+    db.session.commit()
+    
+    flash(f'Subscription for {sub.plan.product.name} renewed!', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/clear_history', methods=['POST'])
+@login_required
+def clear_history():
+    subs = Subscription.query.filter_by(customer_id=current_user.id).all()
+    sub_ids = [s.id for s in subs]
+    invoices = Invoice.query.filter(Invoice.subscription_id.in_(sub_ids)).all()
+    for inv in invoices:
+        inv.is_hidden = True
+    db.session.commit()
+    flash('Billing history cleared from your view.', 'success')
+    return redirect(url_for('dashboard'))
+
+# ==========================================
+# ADMIN & PAYMENT ROUTES
+# ==========================================
 @app.route('/admin/create_plan', methods=['POST'])
 @login_required
 def create_plan():
@@ -150,36 +274,6 @@ def create_plan():
     db.session.add(plan)
     db.session.commit()
     flash('New Plan Created Successfully!', 'success')
-    return redirect(url_for('dashboard'))
-
-@app.route('/subscribe/<int:plan_id>', methods=['POST'])
-@login_required
-def subscribe(plan_id):
-    plan = Plan.query.get_or_404(plan_id)
-    promo_code = request.form.get('promo_code', '').strip().upper()
-    
-    discount_amount = 0.0
-    if promo_code == 'SAVE20':
-        discount_amount = plan.price * 0.20
-        flash('Promo code SAVE20 applied! You got 20% off.', 'success')
-    elif promo_code == 'SUPER70':
-        discount_amount = plan.price * 0.70
-        flash('VIP Promo code SUPER70 applied! You got 70% off.', 'success')
-    elif promo_code != '':
-        flash('Invalid promo code.', 'danger')
-
-    expiry = datetime.utcnow() + timedelta(days=30) 
-    sub = Subscription(customer_id=current_user.id, plan_id=plan.id, status='Active', expiry_date=expiry)
-    db.session.add(sub)
-    db.session.commit()
-    
-    final_price = plan.price - discount_amount
-    tax_amount = final_price * 0.18 
-    inv = Invoice(subscription_id=sub.id, amount=final_price, tax=tax_amount, discount_applied=discount_amount, status='Confirmed')
-    db.session.add(inv)
-    db.session.commit()
-    
-    flash(f'Successfully subscribed to {plan.product.name}!', 'success')
     return redirect(url_for('dashboard'))
 
 @app.route('/checkout/<int:invoice_id>')
@@ -201,41 +295,39 @@ def process_payment(invoice_id):
     return redirect(url_for('dashboard'))
 
 # ==========================================
-# DATABASE SEEDING (100+ Subscriptions)
+# DATABASE SEEDING
 # ==========================================
 with app.app_context():
     db.create_all()
-    # Create default admin
     if not User.query.filter_by(email='admin@brightloop.com').first():
         admin = User(email='admin@brightloop.com', password_hash=generate_password_hash('Admin@1234'), role='admin')
         db.session.add(admin)
         db.session.commit()
     
-    # Seed the Marketplace!
     if not Product.query.first():
+        # Seeding with mixed billing periods
         mock_plans = [
-            {"name": "Netflix Premium", "price": 649.0},
-            {"name": "Spotify Premium", "price": 119.0},
-            {"name": "YouTube Premium", "price": 129.0},
-            {"name": "Meta Verified", "price": 699.0},
-            {"name": "Amazon Prime", "price": 299.0},
-            {"name": "Disney+ Hotstar", "price": 299.0},
-            {"name": "Adobe Creative Cloud", "price": 1675.0},
-            {"name": "Canva Pro", "price": 500.0},
-            {"name": "ChatGPT Plus", "price": 1999.0},
-            {"name": "Microsoft 365", "price": 489.0},
-            {"name": "Apple Music", "price": 99.0},
-            {"name": "LinkedIn Premium", "price": 1200.0},
-            {"name": "Zee5 Premium", "price": 299.0},
-            {"name": "SonyLIV Premium", "price": 299.0},
-            {"name": "Coursera Plus", "price": 4000.0}
+            {"name": "Netflix Premium", "price": 649.0, "period": "monthly"},
+            {"name": "Spotify Premium", "price": 119.0, "period": "monthly"},
+            {"name": "YouTube Premium", "price": 129.0, "period": "monthly"},
+            {"name": "Meta Verified", "price": 699.0, "period": "monthly"},
+            {"name": "Amazon Prime", "price": 1499.0, "period": "yearly"},
+            {"name": "Disney+ Hotstar", "price": 1499.0, "period": "yearly"},
+            {"name": "Adobe Creative Cloud", "price": 1675.0, "period": "monthly"},
+            {"name": "Canva Pro", "price": 3999.0, "period": "yearly"},
+            {"name": "ChatGPT Plus", "price": 1999.0, "period": "monthly"},
+            {"name": "Microsoft 365", "price": 4899.0, "period": "yearly"},
+            {"name": "Apple Music", "price": 99.0, "period": "monthly"},
+            {"name": "LinkedIn Premium", "price": 1200.0, "period": "monthly"},
+            {"name": "Lifetime VPN Access", "price": 4999.0, "period": "lifetime"},
+            {"name": "Lifetime Cloud Storage", "price": 9999.0, "period": "lifetime"},
+            {"name": "Coursera Plus", "price": 4000.0, "period": "yearly"}
         ]
-        
         for mp in mock_plans:
             prod = Product(name=mp["name"], sales_price=mp["price"], cost_price=mp["price"]*0.6)
             db.session.add(prod)
             db.session.commit()
-            plan = Plan(product_id=prod.id, billing_period="monthly", price=mp["price"])
+            plan = Plan(product_id=prod.id, billing_period=mp["period"], price=mp["price"])
             db.session.add(plan)
             db.session.commit()
 

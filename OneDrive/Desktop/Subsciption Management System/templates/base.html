@@ -20,10 +20,21 @@
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
             <a class="navbar-brand" href="/dashboard"><i class="fa-solid fa-bolt me-2"></i>Brightloop</a>
-            <!-- Navbar Links -->
             <div class="d-flex align-items-center text-white">
                 {% if current_user.is_authenticated %}
-                    <a href="/store" class="text-white text-decoration-none me-4 fw-bold"><i class="fa-solid fa-store me-1"></i> Discover Store</a>
+                    <a href="/store" class="text-white text-decoration-none me-4 fw-bold"><i class="fa-solid fa-store me-1"></i> Store</a>
+                    
+                    {% if current_user.role == 'customer' %}
+                    <a href="/cart" class="text-white text-decoration-none me-4 fw-bold position-relative">
+                        <i class="fa-solid fa-cart-shopping fs-5"></i>
+                        {% if cart_count is defined and cart_count > 0 %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            {{ cart_count }}
+                        </span>
+                        {% endif %}
+                    </a>
+                    {% endif %}
+
                     <span class="me-3 d-none d-md-inline"><i class="fa-solid fa-user-circle me-1"></i> {{ current_user.email }} ({{ current_user.role|capitalize }})</span>
                     <a href="/logout" class="btn btn-sm btn-light text-danger fw-bold">Logout</a>
                 {% endif %}
