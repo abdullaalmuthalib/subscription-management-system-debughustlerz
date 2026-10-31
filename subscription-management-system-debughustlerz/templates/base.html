@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Brightloop Subscription Management{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header class="navbar">
+        <a href="{{ url_for('index') }}" class="navbar-brand">
+            <span>odoo</span>
+            <span class="brand-badge">Brightloop Software</span>
+        </a>
+
+        {% if current_user %}
+        <nav>
+            <ul class="nav-links">
+                {% if current_user.role in ['admin', 'staff'] %}
+                <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('subscriptions') }}">Subscriptions</a></li>
+                <li><a href="{{ url_for('quotation_templates') }}">Quote Templates</a></li>
+                <li><a href="{{ url_for('invoices') }}">Invoices</a></li>
+                <li><a href="{{ url_for('billing_run') }}" class="text-warning" style="font-weight: 700;">Run Billing</a></li>
+                {% endif %}
+
+                {% if current_user.role == 'admin' %}
+                <li><a href="{{ url_for('products') }}">Products</a></li>
+                <li><a href="{{ url_for('plans') }}">Plans</a></li>
+                <li><a href="{{ url_for('taxes') }}">Taxes</a></li>
+                <li><a href="{{ url_for('discounts') }}">Discounts</a></li>
+                <li><a href="{{ url_for('staff_management') }}">Staff</a></li>
+                {% endif %}
+
+                {% if current_user.role == 'customer' %}
+                <li><a href="{{ url_for('portal') }}">Customer Portal</a></li>
+                <li><a href="{{ url_for('invoices') }}">My Invoices</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div class="user-badge">
+                <span>{{ current_user.name }}</span>
+                <span class="badge badge-draft" style="font-size: 0.7rem;">{{ current_user.role }}</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="btn btn-outline btn-sm">Log out</a>
+        </div>
+        {% else %}
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="{{ url_for('login') }}" class="btn btn-outline btn-sm">Sign in</a>
+            <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm">Sign up</a>
+        </div>
+        {% endif %}
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        <span>{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div>
+            &copy; 2026 Brightloop Software &bull; Subscription & Recurring Billing Engine
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <span>System Performance:</span>
+            <span class="perf-pill">{{ response_time_ms }} ms (Target: &lt; 2,000 ms)</span>
+        </div>
+    </footer>
+</body>
+</html>
+

@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Automated Billing Day Simulator - Brightloop{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding: 0 0 1.5rem 0;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--dark);">Automated Recurring Billing Engine</h1>
+        <p style="color: var(--gray-600); font-size: 0.95rem;">
+            Automated recurring batch processing. Zero manual invoice typing. Idempotent: guaranteed no double billing and no skips.
+        </p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+    <!-- Trigger Form -->
+    <div class="card" style="border-top: 4px solid var(--warning);">
+        <h2 class="card-title" style="margin-bottom: 0.5rem;">⚡ Trigger Billing Cycle</h2>
+        <p style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 1.25rem;">
+            Runs the automated cron worker against all active subscriptions due on or before the selected target billing date.
+        </p>
+
+        <form method="POST" action="{{ url_for('billing_run') }}">
+            <div class="form-group">
+                <label class="form-label">Target Billing Date</label>
+                <input type="date" name="target_date" class="form-control" value="{{ today }}" required>
+                <small style="color: var(--gray-600); font-size: 0.78rem;">Simulate billing for today or a specific renewal date.</small>
+            </div>
+
+            <button type="submit" class="btn btn-warning" style="width: 100%; padding: 0.75rem; font-weight: 700;">
+                Run Batch Billing Now
+            </button>
+        </form>
+
+        <div style="margin-top: 1.5rem; background: var(--gray-100); border-radius: var(--radius); padding: 0.85rem; font-size: 0.82rem; color: #444;">
+            <strong>Engine Guarantees:</strong>
+            <ul style="margin-left: 1.2rem; margin-top: 0.35rem; line-height: 1.5;">
+                <li>Copies customer, lines &amp; tax configurations automatically.</li>
+                <li>Applies discount rules and updates usage limits.</li>
+                <li>Advances next billing date according to plan interval.</li>
+                <li>Strict idempotency prevents double billing.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Active Subscriptions Queued for Billing -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Active Subscriptions Queued for Next Billing</h2>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Subscription</th>
+                        <th>Customer</th>
+                        <th>Plan</th>
+                        <th>Next Billing Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in active_subs %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('subscription_detail', sub_id=s.id) }}" style="font-weight: 700; color: var(--primary);">
+                                {{ s.subscription_number }}
+                            </a>
+                        </td>
+                        <td>{{ s.customer_name }}</td>
+                        <td>{{ s.plan_name }} ({{ s.billing_interval }})</td>
+                        <td>
+                            <strong class="{% if s.next_billing_date <= today %}text-danger{% else %}text-success{% endif %}">
+                                {{ s.next_billing_date }}
+                                {% if s.next_billing_date <= today %}(DUE NOW){% endif %}
+                            </strong>
+                        </td>
+                        <td><span class="badge badge-active">Active</span></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--gray-600); padding: 1.5rem;">
+                            No active subscriptions found.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

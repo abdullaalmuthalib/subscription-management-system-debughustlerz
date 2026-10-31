@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Subscriptions - Brightloop{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--dark);">Customer Subscriptions</h1>
+        <p style="color: var(--gray-600); font-size: 0.95rem;">
+            Full lifecycle: Draft &rarr; Quotation &rarr; Confirmed &rarr; Active &rarr; Closed
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+        <a href="{{ url_for('new_subscription') }}" class="btn btn-primary">
+            + New Subscription / Quote
+        </a>
+    </div>
+</div>
+
+<!-- Filter Tabs -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--gray-300); padding-bottom: 0.5rem;">
+    <a href="{{ url_for('subscriptions') }}" class="btn btn-sm {% if not current_state %}btn-primary{% else %}btn-outline{% endif %}">All</a>
+    <a href="{{ url_for('subscriptions', state='draft') }}" class="btn btn-sm {% if current_state == 'draft' %}btn-primary{% else %}btn-outline{% endif %}">Draft</a>
+    <a href="{{ url_for('subscriptions', state='quotation') }}" class="btn btn-sm {% if current_state == 'quotation' %}btn-primary{% else %}btn-outline{% endif %}">Quotations</a>
+    <a href="{{ url_for('subscriptions', state='confirmed') }}" class="btn btn-sm {% if current_state == 'confirmed' %}btn-primary{% else %}btn-outline{% endif %}">Confirmed</a>
+    <a href="{{ url_for('subscriptions', state='active') }}" class="btn btn-sm {% if current_state == 'active' %}btn-primary{% else %}btn-outline{% endif %}">Active</a>
+    <a href="{{ url_for('subscriptions', state='paused') }}" class="btn btn-sm {% if current_state == 'paused' %}btn-primary{% else %}btn-outline{% endif %}">Paused</a>
+    <a href="{{ url_for('subscriptions', state='closed') }}" class="btn btn-sm {% if current_state == 'closed' %}btn-primary{% else %}btn-outline{% endif %}">Closed</a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Subscription #</th>
+                    <th>Customer</th>
+                    <th>Plan</th>
+                    <th>Billing Frequency</th>
+                    <th>Start Date</th>
+                    <th>Next Billing</th>
+                    <th>Total Amount</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in subscriptions %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('subscription_detail', sub_id=s.id) }}" style="font-weight: 700; color: var(--primary);">
+                            {{ s.subscription_number }}
+                        </a>
+                    </td>
+                    <td><strong>{{ s.customer_name }}</strong></td>
+                    <td>{{ s.plan_name }}</td>
+                    <td><span class="badge badge-quotation">{{ s.billing_interval|upper }}</span></td>
+                    <td>{{ s.start_date }}</td>
+                    <td>
+                        {% if s.state == 'active' %}
+                        <strong class="text-success">{{ s.next_billing_date }}</strong>
+                        {% else %}
+                        <span style="color: var(--gray-600);">-</span>
+                        {% endif %}
+                    </td>
+                    <td><strong>${{ "%.2f"|format(s.total_amount) }}</strong></td>
+                    <td>
+                        <span class="badge badge-{{ s.state }}">{{ s.state }}</span>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('subscription_detail', sub_id=s.id) }}" class="btn btn-sm btn-outline">
+                            Manage &rarr;
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 2rem; color: var(--gray-600);">
+                        No subscriptions found for this view.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

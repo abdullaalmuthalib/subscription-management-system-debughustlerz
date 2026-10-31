@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Sign In - Brightloop Software{% endblock %}
+
+{% block content %}
+<div style="max-width: 440px; margin: 3rem auto;">
+    <div class="card">
+        <div class="card-header" style="justify-content: center; flex-direction: column; text-align: center; gap: 0.25rem;">
+            <h2 class="card-title">Sign In to Brightloop</h2>
+            <p style="font-size: 0.85rem; color: var(--gray-600);">Unified Subscription & Billing Platform</p>
+        </div>
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" name="email" class="form-control" placeholder="name@company.com" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label class="form-label" style="margin-bottom: 0;">Password</label>
+                    <a href="{{ url_for('forgot_password') }}" style="font-size: 0.8rem; color: var(--primary); text-decoration: none;">Forgot password?</a>
+                </div>
+                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem; padding: 0.7rem;">
+                Sign In
+            </button>
+        </form>
+
+        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--gray-200); text-align: center; font-size: 0.88rem;">
+            <span>New customer?</span>
+            <a href="{{ url_for('register') }}" style="color: var(--primary); font-weight: 600; text-decoration: none;">Create an account</a>
+        </div>
+    </div>
+
+    <div class="card" style="background: #fafbfc; border-style: dashed; padding: 1rem; font-size: 0.85rem;">
+        <strong>Quick Demo Credentials:</strong>
+        <div style="margin-top: 0.5rem; line-height: 1.6;">
+            <div>&bull; <strong>Admin:</strong> <code>admin@brightloop.com</code> / <code>Admin@123456</code></div>
+            <div>&bull; <strong>Staff:</strong> <code>sarah.staff@brightloop.com</code> / <code>Staff@123456</code></div>
+            <div>&bull; <strong>Customer:</strong> <code>billing@acmeretail.com</code> / <code>Customer@123456</code></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

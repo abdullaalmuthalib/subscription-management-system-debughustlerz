@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Quotation Templates - Brightloop{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding: 0 0 1.5rem 0;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--dark);">Quotation Templates</h1>
+        <p style="color: var(--gray-600); font-size: 0.95rem;">
+            Turn quotes into subscriptions quickly. Predefine plans, products, and validity durations so sales reps can prepare offers without building from scratch.
+        </p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+    <!-- Create Template Form -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">New Quotation Template</h2>
+        <form method="POST" action="{{ url_for('quotation_templates') }}">
+            <div class="form-group">
+                <label class="form-label">Template Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Standard SaaS Onboarding" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Target Plan</label>
+                <select name="plan_id" class="form-control" required>
+                    {% for p in plans %}
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.billing_interval }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Validity Duration (Days)</label>
+                <input type="number" name="validity_days" class="form-control" value="30" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="Default terms or offer description"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Create Template</button>
+        </form>
+    </div>
+
+    <!-- Templates List -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Saved Templates</h2>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Template Name</th>
+                        <th>Associated Plan</th>
+                        <th>Valid Days</th>
+                        <th>Notes</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in templates %}
+                    <tr>
+                        <td><strong>{{ t.name }}</strong></td>
+                        <td><span class="badge badge-quotation">{{ t.plan_name }}</span></td>
+                        <td>{{ t.validity_days }} days</td>
+                        <td style="font-size: 0.85rem; color: var(--gray-600);">{{ t.notes or '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('new_subscription') }}?template_id={{ t.id }}" class="btn btn-sm btn-secondary">
+                                + Use For Quote
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

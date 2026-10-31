@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Discount Rules Engine - Brightloop{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding: 0 0 1.5rem 0;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--dark);">Discount Rules &amp; Price Adjustments</h1>
+        <p style="color: var(--gray-600); font-size: 0.95rem;">
+            Only administrators can configure discount rules: percentage or fixed, volume thresholds, expiry dates, and usage limits.
+        </p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+    <!-- Create Discount Form -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Create Discount Rule</h2>
+        <form method="POST" action="{{ url_for('discounts') }}">
+            <div class="form-group">
+                <label class="form-label">Discount Rule Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Volume 10% Off 5+ Seats" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Type</label>
+                    <select name="discount_type" class="form-control">
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="fixed">Fixed Amount ($)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Discount Value</label>
+                    <input type="number" step="0.01" name="value" class="form-control" placeholder="e.g. 10 or 50.00" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Min Purchase ($)</label>
+                    <input type="number" step="0.01" name="min_purchase" class="form-control" value="0.00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Min Quantity (Seats)</label>
+                    <input type="number" name="min_quantity" class="form-control" value="0">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ today }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">End Date (Optional)</label>
+                    <input type="date" name="end_date" class="form-control">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Max Usage Limit (Optional)</label>
+                <input type="number" name="max_usage" class="form-control" placeholder="e.g. 100 times">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Application Scope</label>
+                <select name="scope" class="form-control" id="scope-select">
+                    <option value="subscription">Whole Subscription</option>
+                    <option value="product">Specific Product</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="product-select-group">
+                <label class="form-label">Target Product (If Product Scope)</label>
+                <select name="product_id" class="form-control">
+                    <option value="">-- Select Product --</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Create Discount Rule</button>
+        </form>
+    </div>
+
+    <!-- Discounts List -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Active Discount Rules</h2>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Rule Name</th>
+                        <th>Benefit</th>
+                        <th>Thresholds</th>
+                        <th>Scope</th>
+                        <th>Usage / Limit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in discount_rules %}
+                    <tr>
+                        <td>
+                            <strong>{{ d.name }}</strong>
+                            <div style="font-size: 0.78rem; color: var(--gray-600);">
+                                {{ d.start_date }} &rarr; {{ d.end_date or 'No expiry' }}
+                            </div>
+                        </td>
+                        <td>
+                            <strong class="text-success">
+                                {% if d.discount_type == 'percentage' %}
+                                {{ "%.1f"|format(d.value) }}% OFF
+                                {% else %}
+                                ${{ "%.2f"|format(d.value) }} OFF
+                                {% endif %}
+                            </strong>
+                        </td>
+                        <td style="font-size: 0.82rem;">
+                            {% if d.min_quantity > 0 %}<div>Min Qty: {{ d.min_quantity }}</div>{% endif %}
+                            {% if d.min_purchase > 0 %}<div>Min Spend: ${{ "%.2f"|format(d.min_purchase) }}</div>{% endif %}
+                            {% if d.min_quantity == 0 and d.min_purchase == 0 %}<div>No minimum</div>{% endif %}
+                        </td>
+                        <td>
+                            {% if d.scope == 'product' %}
+                            <span class="badge badge-draft">Product: {{ d.product_name }}</span>
+                            {% else %}
+                            <span class="badge badge-quotation">Whole Subscription</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size: 0.85rem;">
+                            {{ d.usage_count }} / {{ d.max_usage if d.max_usage is not none else '&infin;' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

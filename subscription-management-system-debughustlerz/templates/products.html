@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Product Catalog & Variants - Brightloop{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding: 0 0 1.5rem 0;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--dark);">Products & Variants</h1>
+        <p style="color: var(--gray-600); font-size: 0.95rem;">Configure software subscriptions, add-ons, and pricing attribute variants.</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+    <!-- Create Product Form -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Add New Product</h2>
+        <form method="POST" action="{{ url_for('products') }}">
+            <div class="form-group">
+                <label class="form-label">Product Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Brightloop ERP" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Product Type</label>
+                <select name="product_type" class="form-control">
+                    <option value="Software License">Software License</option>
+                    <option value="Add-on">Add-on</option>
+                    <option value="Service">Service / Support</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Sales Price ($)</label>
+                    <input type="number" step="0.01" name="sales_price" class="form-control" value="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Cost Price ($)</label>
+                    <input type="number" step="0.01" name="cost_price" class="form-control" value="0.00" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Internal Notes</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="Description or internal instructions"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Create Base Product</button>
+        </form>
+    </div>
+
+    <!-- Product & Variant List -->
+    <div>
+        {% for item in products_with_variants %}
+        {% set prod = item.product %}
+        <div class="card" style="margin-bottom: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                <div>
+                    <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--primary);">{{ prod.name }}</h3>
+                    <div style="font-size: 0.85rem; color: var(--gray-600); margin-top: 0.2rem;">
+                        <span>Type: <strong>{{ prod.product_type }}</strong></span> &bull;
+                        <span>Base Price: <strong>${{ "%.2f"|format(prod.sales_price) }}</strong></span> &bull;
+                        <span>Cost: ${{ "%.2f"|format(prod.cost_price) }}</span>
+                    </div>
+                    {% if prod.notes %}
+                    <p style="font-size: 0.85rem; color: #555; margin-top: 0.4rem; font-style: italic;">{{ prod.notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Variants List -->
+            <div style="background: var(--gray-100); border-radius: var(--radius); padding: 0.75rem 1rem; margin-top: 0.5rem;">
+                <h4 style="font-size: 0.82rem; text-transform: uppercase; color: var(--gray-600); letter-spacing: 0.5px; margin-bottom: 0.5rem;">
+                    Configured Variants &amp; Pricing Surcharges
+                </h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                    {% for var in item.variants %}
+                    <span class="badge" style="background: #fff; border: 1px solid var(--gray-300); color: var(--dark); font-size: 0.85rem; padding: 0.35rem 0.75rem;">
+                        <strong>{{ var.attribute_name }}:</strong> {{ var.attribute_value }}
+                        {% if var.price_extra > 0 %}
+                        <span class="text-success" style="font-weight: 700; margin-left: 0.25rem;">(+${{ "%.2f"|format(var.price_extra) }})</span>
+                        {% endif %}
+                    </span>
+                    {% else %}
+                    <span style="font-size: 0.82rem; color: var(--gray-600);">No specific variants added yet.</span>
+                    {% endfor %}
+                </div>
+
+                <!-- Add Variant Inline Form -->
+                <form method="POST" action="{{ url_for('add_product_variant', product_id=prod.id) }}" style="margin-top: 0.75rem; display: flex; gap: 0.5rem; align-items: center; background: #fff; padding: 0.5rem; border-radius: 6px; border: 1px dashed var(--gray-300);">
+                    <input type="text" name="attribute_name" class="form-control" style="max-width: 130px; font-size: 0.85rem;" value="Brand" placeholder="Attribute (e.g. Brand)" required>
+                    <input type="text" name="attribute_value" class="form-control" style="font-size: 0.85rem;" placeholder="Value (e.g. Odoo Edition)" required>
+                    <input type="number" step="0.01" name="price_extra" class="form-control" style="max-width: 120px; font-size: 0.85rem;" placeholder="+Extra ($)" value="560.00">
+                    <button type="submit" class="btn btn-secondary btn-sm" style="white-space: nowrap;">+ Add Variant</button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="card" style="text-align: center; color: var(--gray-600);">
+            No products defined. Create your first product using the form.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+

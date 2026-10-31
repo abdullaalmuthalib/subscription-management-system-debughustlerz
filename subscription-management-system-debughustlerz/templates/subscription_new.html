@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Create Subscription / Quotation - Brightloop{% endblock %}
+
+{% block content %}
+<div style="max-width: 750px; margin: 1rem auto;">
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h1 class="card-title" style="font-size: 1.5rem;">New Offer / Subscription</h1>
+                <p style="font-size: 0.85rem; color: var(--gray-600); margin-top: 0.2rem;">
+                    Create a quotation for a prospect or initiate a confirmed subscription contract.
+                </p>
+            </div>
+            <a href="{{ url_for('subscriptions') }}" class="btn btn-outline btn-sm">&larr; Back to list</a>
+        </div>
+
+        <form method="POST" action="{{ url_for('new_subscription') }}">
+            <!-- Template Selection -->
+            <div class="form-group" style="background: var(--gray-100); padding: 0.75rem; border-radius: var(--radius);">
+                <label class="form-label">Start From Quotation Template (Optional)</label>
+                <select name="template_id" class="form-control">
+                    <option value="">-- Build From Scratch --</option>
+                    {% for t in templates %}
+                    <option value="{{ t.id }}">{{ t.name }} (Valid for {{ t.validity_days }} days)</option>
+                    {% endfor %}
+                </select>
+                <small style="color: var(--gray-600); font-size: 0.78rem;">
+                    Selecting a template automatically loads preset product and variant lines.
+                </small>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Customer Account</label>
+                    <select name="customer_id" class="form-control" required>
+                        {% for c in customers %}
+                        <option value="{{ c.id }}">{{ c.name }} ({{ c.email }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Subscription Plan</label>
+                    <select name="plan_id" class="form-control" required>
+                        {% for p in plans %}
+                        <option value="{{ p.id }}">{{ p.name }} (${{ "%.2f"|format(p.cost) }} / {{ p.billing_interval }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ today }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Expiry Date (Optional)</label>
+                    <input type="date" name="expiry_date" class="form-control">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Payment Terms</label>
+                    <select name="payment_terms" class="form-control">
+                        <option value="Immediate">Immediate / Due on Receipt</option>
+                        <option value="15 Days">Net 15 Days</option>
+                        <option value="30 Days">Net 30 Days</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Apply Discount Rule (Optional)</label>
+                    <select name="discount_rule_id" class="form-control">
+                        <option value="">-- No Discount --</option>
+                        {% for d in discounts %}
+                        <option value="{{ d.id }}">
+                            {{ d.name }} ({% if d.discount_type == 'percentage' %}{{ d.value }}%{% else %}${{ d.value }}{% endif %})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Offer / Contract Notes</label>
+                <textarea name="notes" class="form-control" rows="2" placeholder="Custom agreements, seat allocations, or SLA provisions"></textarea>
+            </div>
+
+            <div style="background: #fafbfc; border: 1px solid var(--gray-300); border-radius: var(--radius); padding: 0.75rem 1rem; margin-bottom: 1.25rem;">
+                <label class="form-label" style="margin-bottom: 0.35rem;">Initial State</label>
+                <div style="display: flex; gap: 1.5rem; font-size: 0.9rem;">
+                    <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                        <input type="radio" name="is_quote" value="1" checked>
+                        <span>Send as <strong>Quotation</strong> (For customer review)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                        <input type="radio" name="is_quote" value="0">
+                        <span>Save as <strong>Draft</strong></span>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.75rem;">
+                Create Subscription Record
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Tax Rules - Brightloop{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding: 0 0 1.5rem 0;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--dark);">Tax Rules &amp; Automated Calculations</h1>
+        <p style="color: var(--gray-600); font-size: 0.95rem;">Define tax rates applied automatically during invoice generation.</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+    <!-- Create Tax Form -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Add New Tax Rule</h2>
+        <form method="POST" action="{{ url_for('taxes') }}">
+            <div class="form-group">
+                <label class="form-label">Tax Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Standard VAT 10%" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Tax Rate (%)</label>
+                <input type="number" step="0.01" name="rate" class="form-control" placeholder="10.0" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Create Tax Rule</button>
+        </form>
+    </div>
+
+    <!-- Taxes List -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Active Tax Configurations</h2>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tax Rule</th>
+                        <th>Rate Percentage</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tax_rules %}
+                    <tr>
+                        <td><strong>{{ t.name }}</strong></td>
+                        <td><strong>{{ "%.2f"|format(t.rate) }}%</strong></td>
+                        <td><span class="badge badge-active">Active</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

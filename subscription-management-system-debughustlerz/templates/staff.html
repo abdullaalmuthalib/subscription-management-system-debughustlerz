@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}Internal Staff Management - Brightloop{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding: 0 0 1.5rem 0;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--dark);">Internal Staff Accounts</h1>
+        <p style="color: var(--gray-600); font-size: 0.95rem;">Only administrators have permission to grant internal staff access.</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+    <!-- Add Staff Form -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Add New Staff Member</h2>
+        <form method="POST" action="{{ url_for('staff_management') }}">
+            <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. John Doe" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Work Email</label>
+                <input type="email" name="email" class="form-control" placeholder="john.doe@brightloop.com" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Initial Password</label>
+                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                <small style="color: var(--gray-600); font-size: 0.75rem;">Must be &gt;8 chars with uppercase, lowercase &amp; special char.</small>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Create Staff Member</button>
+        </form>
+    </div>
+
+    <!-- Staff List -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Active Internal Staff</h2>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Created At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in staff_members %}
+                    <tr>
+                        <td><strong>{{ s.name }}</strong></td>
+                        <td>{{ s.email }}</td>
+                        <td><span class="badge badge-quotation">Internal Staff</span></td>
+                        <td>{{ s.created_at }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--gray-600);">No staff members added yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

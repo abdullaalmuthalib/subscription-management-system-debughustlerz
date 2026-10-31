@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}My Customer Portal - Brightloop{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding: 0 0 1.5rem 0;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--dark);">Customer Self-Service Portal</h1>
+        <p style="color: var(--gray-600); font-size: 0.95rem;">
+            Manage your subscriptions, view invoice history, and review statements 24/7 without waiting on support.
+        </p>
+    </div>
+</div>
+
+<!-- My Subscriptions -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">My Active &amp; Past Subscriptions</h2>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Subscription #</th>
+                    <th>Plan</th>
+                    <th>Frequency</th>
+                    <th>Start Date</th>
+                    <th>Next Billing</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in subscriptions %}
+                <tr>
+                    <td><strong>{{ s.subscription_number }}</strong></td>
+                    <td>{{ s.plan_name }}</td>
+                    <td><span class="badge badge-quotation">{{ s.billing_interval|upper }}</span></td>
+                    <td>{{ s.start_date }}</td>
+                    <td>{{ s.next_billing_date }}</td>
+                    <td><strong>${{ "%.2f"|format(s.total_amount) }}</strong></td>
+                    <td><span class="badge badge-{{ s.state }}">{{ s.state }}</span></td>
+                    <td>
+                        <a href="{{ url_for('subscription_detail', sub_id=s.id) }}" class="btn btn-sm btn-outline">
+                            View Plan &rarr;
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--gray-600); padding: 1.5rem;">
+                        You do not have any subscriptions currently.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- My Invoices -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">My Invoices &amp; Billing History</h2>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Invoice #</th>
+                    <th>Subscription</th>
+                    <th>Date</th>
+                    <th>Due Date</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr>
+                    <td><strong>{{ inv.invoice_number }}</strong></td>
+                    <td>{{ inv.subscription_number or '-' }}</td>
+                    <td>{{ inv.invoice_date }}</td>
+                    <td>{{ inv.due_date }}</td>
+                    <td><strong>${{ "%.2f"|format(inv.amount_total) }}</strong></td>
+                    <td>
+                        <span class="badge badge-{{ inv.state }}">{{ inv.state }}</span>
+                        {% if inv.state == 'confirmed' and inv.due_date < today %}
+                        <span class="badge badge-overdue" style="font-size: 0.65rem;">OVERDUE</span>
+                        {% endif %}
+                    </td>
+                    <td style="display: flex; gap: 0.4rem;">
+                        <a href="{{ url_for('invoice_detail', inv_id=inv.id) }}" class="btn btn-sm btn-outline">
+                            View
+                        </a>
+                        <a href="{{ url_for('print_invoice', inv_id=inv.id) }}" target="_blank" class="btn btn-sm btn-primary">
+                            PDF
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--gray-600); padding: 1.5rem;">
+                        No invoices on record.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

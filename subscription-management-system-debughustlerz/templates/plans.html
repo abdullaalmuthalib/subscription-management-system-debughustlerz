@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Billing Plans - Brightloop{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding: 0 0 1.5rem 0;">
+    <div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--dark);">Subscription Plans &amp; Recurrence</h1>
+        <p style="color: var(--gray-600); font-size: 0.95rem;">Configure billing frequencies, minimum order thresholds, and lifecycle policies.</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+    <!-- Create Plan Form -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Create New Plan</h2>
+        <form method="POST" action="{{ url_for('plans') }}">
+            <div class="form-group">
+                <label class="form-label">Plan Name</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Enterprise Monthly" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Billing Frequency</label>
+                    <select name="billing_interval" class="form-control">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly" selected>Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Base Cost ($)</label>
+                    <input type="number" step="0.01" name="cost" class="form-control" value="120.00" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Minimum Quantity / Seats</label>
+                <input type="number" name="min_quantity" class="form-control" value="1" min="1" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Available From</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ today }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Available Until (Optional)</label>
+                    <input type="date" name="end_date" class="form-control">
+                </div>
+            </div>
+
+            <div style="background: var(--gray-100); padding: 0.75rem; border-radius: var(--radius); margin-bottom: 1rem;">
+                <label class="form-label" style="margin-bottom: 0.5rem;">Lifecycle Policies</label>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.88rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" name="auto_close" value="1">
+                        <span><strong>Auto-close:</strong> Close subscription automatically when expiry date is reached</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" name="allow_pause" value="1" checked>
+                        <span><strong>Allow Pause:</strong> Customer or staff can pause active billing</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" name="allow_renew" value="1" checked>
+                        <span><strong>Allow Renew:</strong> Customer or staff can renew when duration ends</span>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Create Plan</button>
+        </form>
+    </div>
+
+    <!-- Plans List -->
+    <div class="card">
+        <h2 class="card-title" style="margin-bottom: 1rem;">Active Subscription Plans</h2>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Plan Name</th>
+                        <th>Frequency</th>
+                        <th>Min Qty</th>
+                        <th>Valid Range</th>
+                        <th>Lifecycle Rules</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in plans %}
+                    <tr>
+                        <td>
+                            <strong>{{ p.name }}</strong>
+                            <div style="font-size: 0.8rem; color: var(--gray-600);">${{ "%.2f"|format(p.cost) }} / cycle</div>
+                        </td>
+                        <td>
+                            <span class="badge badge-quotation">{{ p.billing_interval|upper }}</span>
+                        </td>
+                        <td>{{ p.min_quantity }}</td>
+                        <td style="font-size: 0.85rem;">
+                            {{ p.start_date }} &rarr; {{ p.end_date or 'Indefinite' }}
+                        </td>
+                        <td style="font-size: 0.82rem;">
+                            <div>Auto-close: <strong>{{ 'Yes' if p.auto_close else 'No' }}</strong></div>
+                            <div>Pause: <strong>{{ 'Allowed' if p.allow_pause else 'Disabled' }}</strong></div>
+                            <div>Renew: <strong>{{ 'Allowed' if p.allow_renew else 'Disabled' }}</strong></div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

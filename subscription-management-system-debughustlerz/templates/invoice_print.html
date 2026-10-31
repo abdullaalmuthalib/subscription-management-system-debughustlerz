@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice {{ inv.invoice_number }} - Brightloop Software</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            margin: 40px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 2px solid #714b67;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .company-name {
+            font-size: 26px;
+            font-weight: bold;
+            color: #714b67;
+        }
+        .inv-title {
+            text-align: right;
+        }
+        .inv-number {
+            font-size: 22px;
+            font-weight: bold;
+            color: #222;
+        }
+        .info-grid {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .info-block {
+            width: 48%;
+        }
+        .info-block h3 {
+            font-size: 13px;
+            text-transform: uppercase;
+            color: #777;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 4px;
+            margin-bottom: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background: #f8f8f8;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #555;
+        }
+        .totals-table {
+            width: 320px;
+            margin-left: auto;
+            border-collapse: collapse;
+        }
+        .totals-table td {
+            padding: 6px 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .grand-total {
+            font-size: 16px;
+            font-weight: bold;
+            color: #714b67;
+            border-top: 2px solid #714b67 !important;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .badge-paid { background: #d4edda; color: #155724; }
+        .badge-confirmed { background: #d1ecf1; color: #0c5460; }
+        .badge-draft { background: #e2e3e5; color: #383d41; }
+        @media print {
+            .no-print { display: none; }
+            body { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom: 20px; display: flex; justify-content: space-between;">
+        <button onclick="window.print()" style="padding: 8px 16px; font-weight: bold; background: #714b67; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
+            🖨️ Print / Save as PDF
+        </button>
+        <button onclick="window.close()" style="padding: 8px 16px; background: #eee; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;">
+            Close Window
+        </button>
+    </div>
+
+    <div class="header">
+        <div>
+            <div class="company-name">Brightloop Software</div>
+            <div>Automated Cloud &amp; Subscription Solutions</div>
+            <div>billing@brightloop.com</div>
+        </div>
+        <div class="inv-title">
+            <div class="inv-number">{{ inv.invoice_number }}</div>
+            <div style="margin-top: 5px;">
+                Status: <span class="badge badge-{{ inv.state }}">{{ inv.state }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-block">
+            <h3>Billed To</h3>
+            <div><strong>{{ inv.customer_name }}</strong></div>
+            <div>{{ inv.customer_email }}</div>
+            {% if inv.subscription_number %}
+            <div style="margin-top: 5px;">Subscription Ref: <strong>{{ inv.subscription_number }}</strong></div>
+            {% endif %}
+        </div>
+        <div class="info-block" style="text-align: right;">
+            <h3>Invoice Metadata</h3>
+            <div>Invoice Date: <strong>{{ inv.invoice_date }}</strong></div>
+            <div>Due Date: <strong>{{ inv.due_date }}</strong></div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th style="text-align: center;">Quantity</th>
+                <th style="text-align: right;">Unit Price</th>
+                <th style="text-align: right;">Discount</th>
+                <th style="text-align: right;">Tax Rate</th>
+                <th style="text-align: right;">Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in lines %}
+            <tr>
+                <td>{{ l.description }}</td>
+                <td style="text-align: center;">{{ l.quantity }}</td>
+                <td style="text-align: right;">${{ "%.2f"|format(l.unit_price) }}</td>
+                <td style="text-align: right;">
+                    {% if l.discount_amount > 0 %}-${{ "%.2f"|format(l.discount_amount) }}{% else %}-${% endif %}
+                </td>
+                <td style="text-align: right;">{{ "%.1f"|format(l.tax_rate) }}%</td>
+                <td style="text-align: right;">${{ "%.2f"|format(l.subtotal) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="totals-table">
+        <tr>
+            <td>Untaxed Subtotal:</td>
+            <td style="text-align: right;">${{ "%.2f"|format(inv.amount_untaxed) }}</td>
+        </tr>
+        {% if inv.amount_discount > 0 %}
+        <tr>
+            <td>Discount Applied:</td>
+            <td style="text-align: right; color: #28a745;">-${{ "%.2f"|format(inv.amount_discount) }}</td>
+        </tr>
+        {% endif %}
+        <tr>
+            <td>Calculated Taxes:</td>
+            <td style="text-align: right;">${{ "%.2f"|format(inv.amount_tax) }}</td>
+        </tr>
+        <tr class="grand-total">
+            <td>Total Due:</td>
+            <td style="text-align: right;">${{ "%.2f"|format(inv.amount_total) }}</td>
+        </tr>
+    </table>
+
+    <div style="margin-top: 60px; border-top: 1px solid #ddd; padding-top: 15px; font-size: 12px; color: #777; text-align: center;">
+        Thank you for choosing Brightloop Software! &bull; Questions? Email billing@brightloop.com
+    </div>
+</body>
+</html>
+
