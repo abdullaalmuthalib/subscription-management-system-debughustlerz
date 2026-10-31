@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row mt-4">
+    <div class="col-md-8">
+        <h3 class="fw-bold mb-4"><i class="fa-solid fa-cart-shopping me-2 text-primary"></i>Your Cart</h3>
+        
+        {% if cart_items %}
+            <div class="card shadow-sm border-0">
+                <ul class="list-group list-group-flush">
+                    {% for item in cart_items %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center p-4">
+                        <div>
+                            <h5 class="fw-bold mb-1">{{ item.plan.product.name }}</h5>
+                                                       <span class="text-muted small">{{ item.plan.billing_period|capitalize }} Subscription</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-4">
+                            <span class="fs-5 fw-bold">₹{{ item.plan.price }}</span>
+                            <form method="POST" action="/remove_from_cart/{{ item.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% else %}
+            <div class="text-center py-5 bg-white rounded shadow-sm">
+                <i class="fa-solid fa-cart-arrow-down fa-3x text-light mb-3"></i>
+                <h5 class="text-muted">Your cart is empty.</h5>
+                <a href="/store" class="btn btn-primary mt-3">Go to Store</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 bg-light p-4">
+            <h5 class="fw-bold mb-4">Order Summary</h5>
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Subtotal</span>
+                <span class="fw-bold">₹{{ "%.2f"|format(total) }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-4">
+                <span class="text-muted">Tax (18%)</span>
+                <span class="fw-bold">Calculated at next step</span>
+            </div>
+            
+            {% if cart_items %}
+            <form method="POST" action="/checkout_cart">
+                <div class="mb-3">
+                    <input type="text" name="promo_code" class="form-control" placeholder="Promo Code (SAVE20)">
+                </div>
+                <button type="submit" class="btn btn-primary w-100 fw-bold py-2">Proceed to Billing</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
