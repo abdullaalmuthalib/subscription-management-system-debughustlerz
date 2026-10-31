@@ -46,6 +46,9 @@ Managing multiple recurring subscriptions—from streaming platforms to SaaS too
 Check out the deployed application on Render:  
 👉 **[https://subscription-management-system-b7bb.onrender.com](https://subscription-management-system-b7bb.onrender.com)**
 
+## Demo Video Explanation 
+👉 https://drive.google.com/file/d/1ueWLZMR81TRZsEtZRD3vPNTV-85XTp3q/view?usp=drivesdk
+
 ---
 
 ## 💻 Local Setup & Installation
