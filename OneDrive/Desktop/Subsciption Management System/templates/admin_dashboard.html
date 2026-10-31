@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Admin Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-0">Admin Command Center</h2>
+        <p class="text-muted">Manage products, plans, and global revenue.</p>
+    </div>
+    <span class="badge bg-dark px-3 py-2 fs-6 rounded-pill"><i class="fa-solid fa-shield-halved me-2"></i>Super Admin</span>
+</div>
+
+<!-- Admin Metrics -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card p-4 border-start border-4 border-success bg-white">
+            <h6 class="text-muted text-uppercase mb-1 fw-bold">Total Revenue Collected</h6>
+            <h2 class="fw-bold mb-0 text-success">₹{{ "%.2f"|format(revenue) }}</h2>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 border-start border-4 border-primary bg-white">
+            <h6 class="text-muted text-uppercase mb-1 fw-bold">Active Subscriptions</h6>
+            <h2 class="fw-bold mb-0 text-primary">{{ subs|length }}</h2>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-4 border-start border-4 border-warning bg-white">
+            <h6 class="text-muted text-uppercase mb-1 fw-bold">Unpaid Invoices</h6>
+            <h2 class="fw-bold mb-0 text-warning">{{ invoices|selectattr('status', 'equalto', 'Confirmed')|list|length }}</h2>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Create Plan Form -->
+    <div class="col-md-4">
+        <div class="card p-4 border-0 shadow-sm" style="background-color: #f8fafc;">
+            <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-plus-circle text-primary me-2"></i>Launch New Plan</h5>
+            <form method="POST" action="/admin/create_plan">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Product Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Brightloop Pro" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Price (₹)</label>
+                    <input type="number" name="price" class="form-control" placeholder="e.g. 1500" required>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Billing Cycle</label>
+                    <select name="billing" class="form-select">
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 fw-bold py-2">Deploy Plan</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Global Invoices -->
+    <div class="col-md-8">
+        <div class="card p-4 border-0 shadow-sm">
+            <h5 class="fw-bold mb-3"><i class="fa-solid fa-globe text-primary me-2"></i>Global Invoice Ledger</h5>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Invoice</th>
+                            <th>Sub ID</th>
+                            <th>Total Amount</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in invoices %}
+                        <tr>
+                            <td class="fw-bold">#INV-{{ inv.id }}</td>
+                            <td>#SUB-{{ inv.subscription_id }}</td>
+                            <td class="fw-bold">₹{{ "%.2f"|format(inv.amount + inv.tax) }}</td>
+                            <td>
+                                {% if inv.status == 'Paid' %}
+                                    <span class="badge bg-success">Paid</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if inv.status != 'Paid' %}
+                                <a href="/checkout/{{ inv.id }}" class="btn btn-sm btn-outline-success fw-bold">Process Payment</a>
+                                {% else %}
+                                <i class="fa-solid fa-check-circle text-success fs-5"></i>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">No invoices in system.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
